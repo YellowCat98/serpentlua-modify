@@ -37,9 +37,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Scoop # installing scoop because i dont trust winget
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          irm get.scoop.sh | iex
+
       - name: Setup Geode
         run: |
-          winget install GeodeSDK.GeodeCLI
+          scoop bucket add extras
+          scoop install geode-sdk-cli
           geode sdk install
           geode sdk install-binaries
 
