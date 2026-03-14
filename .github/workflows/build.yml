@@ -47,6 +47,7 @@ jobs:
         run: |
           scoop bucket add extras
           scoop install geode-sdk-cli
+          geode profile add helloWorld C:/ # dont need a profile but it refuses to run without one
           geode sdk install
           geode sdk install-binaries
 
