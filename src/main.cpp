@@ -1,4 +1,3 @@
-#include <iostream>
 #include <string>
 #include <Windows.h>
 #include <sol/sol.hpp>
@@ -70,7 +69,7 @@ __declspec(dllexport) void entry(lua_State* L) {
 		}
 		globals::hookDetours.insert({fn, function}); // yes youre not supposed to call registerHook more than once otherwise this will get called twice and do problemos
 
-		geode::Mod::get()->hook(
+		auto result = geode::Mod::get()->hook(
 			reinterpret_cast<void*>(geode::base::get() + 0x335740), // i should probably add another map that holds what the functions correspond to
 			+[](MenuLayer* self, cocos2d::CCObject* sender) {
 				sol::state_view state(globals::rawState);
@@ -88,6 +87,11 @@ __declspec(dllexport) void entry(lua_State* L) {
 			"Boi",
 			tulip::hook::TulipConvention::Thiscall
 		);
+
+		if (result.isErr()) {
+			api.log(api.metadata, fmt::format("Unable to apply hook: {}", *(result.err())).c_str(), "error");
+			return;
+		}
 	};
 
 	state["serpentlua_modules"][std::string(api.metadata.id)] = [table]() {
