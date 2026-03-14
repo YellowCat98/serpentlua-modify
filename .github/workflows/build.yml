@@ -48,8 +48,8 @@ jobs:
           scoop bucket add extras
           scoop install geode-sdk-cli
           geode profile add --name helloWorld C:/ # dont need a profile but it refuses to run without one
-          geode sdk install
-          geode sdk install-binaries
+          echo y | geode sdk install
+          echo y | geode sdk install-binaries
 
       - name: Compile
         run: |
