@@ -39,8 +39,7 @@ jobs:
 
       - name: Setup Geode
         run: |
-          scoop bucket add extras
-          scoop install geode-sdk-cli
+          winget install GeodeSDK.GeodeCLI
           geode sdk install
           geode sdk install-binaries
 
