@@ -37,11 +37,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Scoop # installing scoop because i dont trust winget
-        run: |
-          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-          irm get.scoop.sh | iex
-          echo "$env:USERPROFILE\scoop\shims" >> $env:GITHUB_PATH
+      - name: Setup Scoop # installing scoop because i dont trust winget
+        uses: MinoruSekine/setup-scoop@v3
+        with:
+          buckets: extras
 
       - name: Setup Geode
         run: |
