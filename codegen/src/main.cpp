@@ -77,10 +77,17 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
     );
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+
+    if (argc != 2) {
+        fmt::println("Usage: {} <Broma file>", argv[0]);
+        return 1;
+    }
+    globals::fileName = std::string(argv[1]);
+
     broma::Root root;
     try {
-        root = broma::parse_file("test.bro");
+        root = broma::parse_file(globals::fileName);
     } catch (std::exception& err) {
         fmt::print("{}", err.what());
         return 1;
