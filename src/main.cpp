@@ -36,7 +36,7 @@ void print(const std::string& msg, const char* type) {
 }
 
 
-
+/*
 namespace CodegenData {
 	inline std::unordered_map<std::string, CodegenDeps::HookInfo> hookRegistry;
 	namespace _MenuLayer {
@@ -71,6 +71,9 @@ namespace CodegenData {
 		hookRegistry["MenuLayer_onMoreGames"] = CodegenDeps::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
 	}
 }
+*/
+
+
 
 extern "C" __declspec(dllexport) void entry(lua_State* L) {
 	api.log(api.metadata, "Modify initialized!", "info");
