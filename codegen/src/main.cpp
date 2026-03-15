@@ -5,6 +5,11 @@
 #include <fstream>
 #include <sstream>
 
+struct globals {
+    inline static std::string fileName = "";
+    inline static std::string hookRegistryItems = "";
+};
+
 std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma, bool withTypes) {
     std::ostringstream buffer;
 
@@ -46,7 +51,7 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
     std::ostringstream buffer;
     return fmt::format(
         fmt::runtime(
-            "            geode::Result<geode::Hook*>(sol::function fn) {{\n"
+            "            geode::Result<geode::Hook*> createHook(sol::function fn) {{\n"
             "                hookFn = fn;\n\n"
             "                return geode::Mod::get()->hook(\n"
             "                    reinterpret_cast<void*>(geode::base::get() + address),\n"
@@ -104,11 +109,17 @@ int main() {
 
                 file << generateCreateHook(cls, func); // generation ends here, this doesnt get called
 
+                globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = CodegenDeps::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, func->prototype.name, cls.name, func->prototype.name, cls.name, func->prototype.name);
+
                 file << "        }\n";
             }
         }
         file << "    }\n";
     }
+    file << "    void populateHookRegistry() {\n"
+    << globals::hookRegistryItems
+    << "    }\n";
+
     file << "}";
 
     return 0;
