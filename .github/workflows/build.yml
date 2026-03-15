@@ -42,8 +42,9 @@ jobs:
         with:
           buckets: extras
 
-      - name: Setup Geode
+      - name: Setup Geode and sccache
         run: |
+          scoop install sccache
           scoop bucket add extras
           scoop install geode-sdk-cli
           geode profile add --name helloWorld C:/ # dont need a profile but it refuses to run without one
