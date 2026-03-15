@@ -47,6 +47,15 @@ struct globals {
 lua_State* globals::rawState = nullptr; // initialize as nullptr
 std::unordered_map<std::string, sol::function> globals::hookDetours = {};
 
+namespace CodegenData {
+	namespace MenuLayer {
+		namespace onMoreGames {
+			uintptr_t address;
+			std::function<void(MenuLayer*, CCObject*)> original;
+		}
+	}
+}
+
 __declspec(dllexport) void entry(lua_State* L) {
 	api.log(api.metadata, "Modify initialized!", "info");
 
@@ -61,7 +70,7 @@ __declspec(dllexport) void entry(lua_State* L) {
 		auto cls_fn = fmt::format("{}_{}", cls, fn);
 		
 		if (globals::hookDetours.contains(cls_fn)) {
-			api.log(api.metadata, "registerHook must not be called more than once.", "warn");
+			api.log(api.metadata, "Function `hook` must not be called more than once.", "warn");
 			return;
 		}
 		globals::hookDetours.insert({cls_fn, function}); // yes youre not supposed to call registerHook more than once otherwise this will get called twice and do problemos
