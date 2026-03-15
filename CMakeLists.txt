@@ -65,7 +65,8 @@ add_dependencies(yellowcat98_modify serpentlua_res)
 target_link_options(yellowcat98_modify PRIVATE ${RESOURCE_OUTPUT})
 
 target_include_directories(yellowcat98_modify PRIVATE
-    "${CMAKE_SOURCE_DIR}/lua"
+    lua
+    include
 )
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC GEODE_MOD_ID="yellowcat98modify") # required to compile some stuff in geode itself

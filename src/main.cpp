@@ -2,13 +2,14 @@
 #include <Windows.h>
 #include <sol/sol.hpp>
 #include <Geode/Geode.hpp>
-#ifdef __cplusplus
+#include <globals.hpp>
 extern "C" {
-#endif
+	#include <lua.h>
+	#include <lualib.h>
+	#include <lauxlib.h>
+}
 
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
+lua_State* globals::rawState = nullptr; // initialize the Member globals::rawState as nullptr.
 
 struct __metadata {
     const char* name;
@@ -26,11 +27,7 @@ struct SerpentLuaAPI {
 
 static SerpentLuaAPI api;
 
-void onMoreJames(void* self, void* hi) {
-
-}
-
-__declspec(dllexport) void initNativeAPI(SerpentLuaAPI toiletAPI) {
+extern "C" __declspec(dllexport) void initNativeAPI(SerpentLuaAPI toiletAPI) {
 	api = toiletAPI;
 }
 
@@ -38,25 +35,51 @@ void print(const std::string& msg, const char* type) {
 	api.log(api.metadata, msg.c_str(), type);
 }
 
-// this struct only exists so i can retrieve things within functions that take lambdas that dont support capture
-struct globals {
-	static lua_State* rawState;
-	static std::unordered_map<std::string, sol::function> hookDetours;
-};
 
-lua_State* globals::rawState = nullptr; // initialize as nullptr
-std::unordered_map<std::string, sol::function> globals::hookDetours = {};
 
 namespace CodegenData {
-	namespace MenuLayer {
+	struct HookInfo {
+		HookInfo() = default;
+		HookInfo(uintptr_t address, std::function<geode::Result<geode::Hook*>(sol::function)> createHook) : address(address), createHook(createHook), hooked(false) {}
+		uintptr_t address;
+		std::function<geode::Result<geode::Hook*>(sol::function)> createHook;
+		bool hooked;
+	};
+	inline std::unordered_map<std::string, HookInfo> hookRegistry;
+	namespace _MenuLayer {
 		namespace onMoreGames {
-			uintptr_t address;
-			std::function<void(MenuLayer*, CCObject*)> original;
+			inline uintptr_t address = 0x335740;
+			inline static sol::function hookFn;
+			geode::Result<geode::Hook*> createHook(sol::function fn) {
+				hookFn = fn;
+
+				return geode::Mod::get()->hook(
+					reinterpret_cast<void*>(geode::base::get() + address), // i should probably add another map that holds what the functions correspond to
+					+[](MenuLayer* self, cocos2d::CCObject* sender) {
+						sol::state_view state(globals::rawState);
+
+						sol::environment env(state, sol::create, state.globals());
+						env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender) {
+							return self->onMoreGames(sender);
+						};
+
+						sol::set_environment(env, hookFn);
+						hookFn(self, sender);
+					},
+					"MenuLayer::onMoreGames",
+					tulip::hook::TulipConvention::Thiscall
+				);
+			}
 		}
+	}
+
+	// hookRegistry is just a teeny tiny way of retrieving a function through lua
+	void populateHookRegistry() {
+		hookRegistry["MenuLayer_onMoreGames"] = HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
 	}
 }
 
-__declspec(dllexport) void entry(lua_State* L) {
+extern "C" __declspec(dllexport) void entry(lua_State* L) {
 	api.log(api.metadata, "Modify initialized!", "info");
 
 	globals::rawState = L; // but is it now initialized as nullptr? i Dont fucking KNOW!!!!!!!!
@@ -65,22 +88,26 @@ __declspec(dllexport) void entry(lua_State* L) {
 
 	auto table = state.create_table();
 
+	CodegenData::populateHookRegistry();
+
 	table["hook"] = [](sol::this_state ts, std::string cls, std::string fn, sol::function function) {
 		
 		auto cls_fn = fmt::format("{}_{}", cls, fn);
+
+		auto& hookInfo = CodegenData::hookRegistry[cls_fn];
 		
-		if (globals::hookDetours.contains(cls_fn)) {
-			api.log(api.metadata, "Function `hook` must not be called more than once.", "warn");
+		if (hookInfo.hooked) {
+			api.log(api.metadata, fmt::format("{} was already hooked. (hookInfo.hooked == true)", cls_fn).c_str(), "warn");
 			return;
 		}
-		globals::hookDetours.insert({cls_fn, function}); // yes youre not supposed to call registerHook more than once otherwise this will get called twice and do problemos
 
+		/*
 		auto result = geode::Mod::get()->hook(
-			reinterpret_cast<void*>(geode::base::get() + 0x335740), // i should probably add another map that holds what the functions correspond to
+			reinterpret_cast<void*>(geode::base::get() + hookInfo.address), // i should probably add another map that holds what the functions correspond to
 			+[](MenuLayer* self, cocos2d::CCObject* sender) {
 				sol::state_view state(globals::rawState);
 
-				auto func = globals::hookDetours["MenuLayer_onMoreGames"];
+				auto func = globals::hookDetours[cls_fn];
 
 				sol::environment env(state, sol::create, state.globals());
 				env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender) {
@@ -92,19 +119,18 @@ __declspec(dllexport) void entry(lua_State* L) {
 			},
 			"Boi",
 			tulip::hook::TulipConvention::Thiscall
-		);
+		);*/
+
+		auto result = hookInfo.createHook(function);
 
 		if (result.isErr()) {
 			api.log(api.metadata, fmt::format("Unable to apply hook: {}", *(result.err())).c_str(), "error");
 			return;
 		}
+		hookInfo.hooked = true;
 	};
 
 	state["serpentlua_modules"][std::string(api.metadata.id)] = [table]() {
 		return table;
 	};
 }
-
-#ifdef __cplusplus
-}
-#endif
