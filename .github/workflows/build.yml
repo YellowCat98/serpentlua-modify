@@ -63,4 +63,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Build
-          path:  ${{ github.workspace }}\.output\*
+          path:  ${{ github.workspace }}\.output\yellowcat98.modify.slp
