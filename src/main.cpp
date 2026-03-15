@@ -56,7 +56,7 @@ __declspec(dllexport) void entry(lua_State* L) {
 
 	auto table = state.create_table();
 
-	table["hook"] = [](sol::this_state ts, std::string cls, std::string, fn, sol::function function) {
+	table["hook"] = [](sol::this_state ts, std::string cls, std::string fn, sol::function function) {
 		
 		auto cls_fn = fmt::format("{}_{}", cls, fn);
 		
