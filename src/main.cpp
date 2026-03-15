@@ -56,18 +56,15 @@ __declspec(dllexport) void entry(lua_State* L) {
 
 	auto table = state.create_table();
 
-	table["the_Function"] = [](sol::this_state ts) {
-		api.log(api.metadata, "hello World, this is the Sol2 LIBrare.", "info");
-	};
-
-	table["hook"] = [](sol::this_state ts, std::string fn, sol::function function) {
+	table["hook"] = [](sol::this_state ts, std::string cls, std::string, fn, sol::function function) {
 		
+		auto cls_fn = fmt::format("{}_{}", cls, fn);
 		
-		if (globals::hookDetours.contains(fn)) {
+		if (globals::hookDetours.contains(cls_fn)) {
 			api.log(api.metadata, "registerHook must not be called more than once.", "warn");
 			return;
 		}
-		globals::hookDetours.insert({fn, function}); // yes youre not supposed to call registerHook more than once otherwise this will get called twice and do problemos
+		globals::hookDetours.insert({cls_fn, function}); // yes youre not supposed to call registerHook more than once otherwise this will get called twice and do problemos
 
 		auto result = geode::Mod::get()->hook(
 			reinterpret_cast<void*>(geode::base::get() + 0x335740), // i should probably add another map that holds what the functions correspond to
