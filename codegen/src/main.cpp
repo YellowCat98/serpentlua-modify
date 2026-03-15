@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 struct globals {
     inline static std::string fileName = "";
@@ -105,18 +106,31 @@ int main(int argc, char* argv[]) {
     for (broma::Class& cls : root.classes) {
         std::string& name = cls.name;
         file << fmt::format("    namespace _{} {{\n", name); // using _{} so it doesnt conflict with existing gd classes
+
+        std::unordered_map<std::string, int> overloadCount;
+
         for (broma::Field& field : cls.fields) {
             if (auto func = field.get_as<broma::FunctionBindField>()) {
                 if (func->prototype.ret.name == "TodoReturn") continue;
-                if (func->binds.win == -0x1 || func->binds.win == -0x2) continue; // skip classes that arent bound
-                file << fmt::format("        namespace {} {{\n", func->prototype.name);
+                if (func->binds.win == -0x1 || func->binds.win == -0x2) continue; // skip inline and dont have win bindings
+
+                std::string baseName = func->prototype.name;
+                int& count = overloadCount[baseName];
+                count++;
+
+                std::string finalName = baseName;
+                if (count > 1) {
+                    finalName += std::to_string(count);
+                }
+
+                file << fmt::format("        namespace {} {{\n", finalName);
                 
                 file << fmt::format("            inline uintptr_t address = {:#x};\n", func->binds.win);
                 file << "            inline sol::function hookFn;\n";
 
                 file << generateCreateHook(cls, func); // generation ends here, this doesnt get called
 
-                globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = CodegenDeps::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, func->prototype.name, cls.name, func->prototype.name, cls.name, func->prototype.name);
+                globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = CodegenDeps::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, finalName, cls.name, finalName, cls.name, finalName);
 
                 file << "        }\n";
             }
