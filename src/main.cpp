@@ -38,14 +38,7 @@ void print(const std::string& msg, const char* type) {
 
 
 namespace CodegenData {
-	struct HookInfo {
-		HookInfo() = default;
-		HookInfo(uintptr_t address, std::function<geode::Result<geode::Hook*>(sol::function)> createHook) : address(address), createHook(createHook), hooked(false) {}
-		uintptr_t address;
-		std::function<geode::Result<geode::Hook*>(sol::function)> createHook;
-		bool hooked;
-	};
-	inline std::unordered_map<std::string, HookInfo> hookRegistry;
+	inline std::unordered_map<std::string, CodegenDeps::HookInfo> hookRegistry;
 	namespace _MenuLayer {
 		namespace onMoreGames {
 			inline uintptr_t address = 0x335740;
@@ -75,7 +68,7 @@ namespace CodegenData {
 
 	// hookRegistry is just a teeny tiny way of retrieving a function through lua
 	void populateHookRegistry() {
-		hookRegistry["MenuLayer_onMoreGames"] = HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
+		hookRegistry["MenuLayer_onMoreGames"] = CodegenDeps::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
 	}
 }
 
