@@ -120,6 +120,7 @@ int main(int argc, char* argv[]) {
 
                 std::string finalName = baseName;
                 if (count > 1) {
+                    finalName += "__";
                     finalName += std::to_string(count);
                 }
 
