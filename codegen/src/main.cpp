@@ -57,8 +57,8 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
             "                return geode::Mod::get()->hook(\n"
             "                    reinterpret_cast<void*>(geode::base::get() + address),\n"
             "                    +[]({}* self{}) {{\n"
-            "                        sol::state_view state(globals::rawState);\n\n"
-            "                        sol::environment env(state, sol::create, state.globals());\n"
+            "                        sol::state_view __theSuperRawLuaState(globals::rawState);\n\n"
+            "                        sol::environment env(__theSuperRawLuaState, sol::create, __theSuperRawLuaState.globals());\n"
             "                        env[\"original\"] = []({}* self{}) {{\n"
             "                            return self->{}({});\n"
             "                        }};\n\n"
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
             if (auto func = field.get_as<broma::FunctionBindField>()) {
                 if (func->prototype.ret.name == "TodoReturn") continue;
                 if (func->binds.win == -0x1 || func->binds.win == -0x2) continue; // skip inline and dont have win bindings
-
+                if (func->prototype.type == broma::FunctionType::Ctor || func->prototype.type == broma::FunctionType::Dtor) continue; // ignore constructors and destructors!
                 std::string baseName = func->prototype.name;
                 int& count = overloadCount[baseName];
                 count++;
