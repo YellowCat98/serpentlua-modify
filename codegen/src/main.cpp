@@ -11,7 +11,28 @@ struct globals {
     inline static std::string hookRegistryItems = "";
 };
 
-std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma, bool withTypes) {
+std::string handleContainerAnnoyingBullshit(std::pair<broma::Type, std::string> arg) {
+    auto name = arg.second;
+    auto type = arg.first.name;
+    std::vector<std::string> bullshit = {
+        "std::vector",
+        "gd::vector",
+        "std::unordered_map",
+        "gd::unordered_map",
+        "std::list",
+        "gd::list"
+    };
+    
+    for (const auto& cont : bullshit) {
+        if (type.find(cont) != std::string::npos && type.back() == '*') {
+            return fmt::format("*{}", name);
+        }
+    }
+
+    return name;
+}
+
+std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma, bool withTypes, bool handleAnnoyingBullshit) {
     std::ostringstream buffer;
 
     auto args = fn->prototype.args;
@@ -19,12 +40,13 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
     if (startWithComma) buffer << ", ";
 
     for (const auto& arg : args) {
-        auto type = arg.first.name;
-
         if (withTypes)
-            buffer << type << " " << arg.second << ", ";
+            buffer << arg.first.name << " " << arg.second << ", ";
         else
-            buffer << arg.second << ", ";
+            if (handleAnnoyingBullshit)
+                buffer << handleContainerAnnoyingBullshit(arg) << ", ";
+            else
+                buffer << arg.second << ", ";
     }
 
     auto str = buffer.str();
@@ -35,13 +57,13 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
     return str;
 }
 
-std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool withTypes, bool selfPrefix) {
-    if (fn->prototype.is_static) return generateArgsFromFn(fn, false, withTypes);
+std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool withTypes, bool selfPrefix, bool handleAnnoyingBullshit) {
+    if (fn->prototype.is_static) return generateArgsFromFn(fn, false, withTypes, handleAnnoyingBullshit);
 
 
     std::string ret = withTypes
-        ? fmt::format("{}{}", selfPrefix ? fmt::format("{}* self", cls.name) : "", generateArgsFromFn(fn, selfPrefix, withTypes))
-        : fmt::format("{}{}", selfPrefix ? "self" : "", generateArgsFromFn(fn, selfPrefix, withTypes));
+        ? fmt::format("{}{}", selfPrefix ? fmt::format("{}* self", cls.name) : "", generateArgsFromFn(fn, selfPrefix, withTypes, handleAnnoyingBullshit))
+        : fmt::format("{}{}", selfPrefix ? "self" : "", generateArgsFromFn(fn, selfPrefix, withTypes, handleAnnoyingBullshit));
 
     return ret;
 }
@@ -50,9 +72,9 @@ std::string generateOriginalCall(broma::Class& cls, broma::FunctionBindField* fn
     std::string finalCall;
 
     if (fn->prototype.is_static) {
-        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false));
+        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false, false));
     } else {
-        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false));
+        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false, false));
     }
 
     return finalCall;
@@ -62,16 +84,16 @@ std::string generateProperHookFnCall(broma::Class& cls, broma::FunctionBindField
     std::ostringstream buffer;
 
     if (fn->prototype.ret.name == "void") {
-        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, true));
+        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, true, true));
     } else {
-        buffer << fmt::format("sol::object result = hookFn({});\n", generateHookSignature(cls, fn, false, true));
-        buffer << fmt::format("                        return result.as<{}>();", fn->prototype.ret.name);
+        buffer << fmt::format("sol::object __TheGreatResultOfAllTime = hookFn({});\n", generateHookSignature(cls, fn, false, true, true));
+        buffer << fmt::format("                        return __TheGreatResultOfAllTime.as<{}>();", fn->prototype.ret.name);
     }
 
     return buffer.str();
 }
 
-bool hasFuckassReferenceInArgs(broma::FunctionBindField* fn) {
+bool hasBullshitSol2DoesntLike(broma::FunctionBindField* fn) {
     for (const auto& arg : fn->prototype.args) {
         std::string type = arg.first.name;
 
@@ -79,7 +101,7 @@ bool hasFuckassReferenceInArgs(broma::FunctionBindField* fn) {
             if (type.find("const") == std::string::npos) {
                 return true;
             }
-        }
+        } else if (type.find("unordered_map") != std::string::npos) return true;
     }
     return false;
 }
@@ -106,8 +128,8 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
             "                );\n"
             "            }}\n"
         ),
-        generateHookSignature(cls, fn, true, true),
-        generateHookSignature(cls, fn, true, true),
+        generateHookSignature(cls, fn, true, true, false),
+        generateHookSignature(cls, fn, true, true, false),
         generateOriginalCall(cls, fn),
         generateProperHookFnCall(cls, fn),
         cls.name, fn->prototype.name
@@ -150,7 +172,7 @@ int main(int argc, char* argv[]) {
                 if (func->prototype.ret.name == "TodoReturn") continue;
                 if (func->binds.win == -0x1 || func->binds.win == -0x2) continue; // skip inline and dont have win bindings
                 if (func->prototype.type == broma::FunctionType::Ctor || func->prototype.type == broma::FunctionType::Dtor) continue; // ignore constructors and destructors!
-                if (hasFuckassReferenceInArgs(func)) continue; // fuck your std::vector<int>&
+                if (hasBullshitSol2DoesntLike(func)) continue; // fuck your std::vector<int>&
                 std::string baseName = func->prototype.name;
                 int& count = overloadCount[baseName];
                 count++;
