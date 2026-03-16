@@ -35,18 +35,42 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
     return str;
 }
 
-std::string generateProperHookFnCall(broma::FunctionBindField* fn) {
+std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool withTypes, bool selfPrefix) {
+    if (fn->prototype.is_static) return generateArgsFromFn(fn, false, withTypes);
+
+
+    std::string ret = withTypes
+        ? fmt::format("{}{}", selfPrefix ? fmt::format("{}* self", cls.name) : "", generateArgsFromFn(fn, selfPrefix, withTypes))
+        : fmt::format("{}{}", selfPrefix ? "self" : "", generateArgsFromFn(fn, selfPrefix, withTypes));
+
+    return ret;
+}
+
+std::string generateOriginalCall(broma::Class& cls, broma::FunctionBindField* fn) {
+    std::string finalCall;
+
+    if (fn->prototype.is_static) {
+        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false));
+    } else {
+        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false));
+    }
+
+    return finalCall;
+}
+
+std::string generateProperHookFnCall(broma::Class& cls, broma::FunctionBindField* fn) {
     std::ostringstream buffer;
 
     if (fn->prototype.ret.name == "void") {
-        buffer << fmt::format("hookFn(self{});", generateArgsFromFn(fn, true, false));
+        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, true));
     } else {
-        buffer << fmt::format("sol::object result = hookFn(self{});\n", generateArgsFromFn(fn, true, false));
+        buffer << fmt::format("sol::object result = hookFn({});\n", generateHookSignature(cls, fn, false, true));
         buffer << fmt::format("                        return result.as<{}>();", fn->prototype.ret.name);
     }
 
     return buffer.str();
 }
+
 
 std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) {
     std::ostringstream buffer;
@@ -56,11 +80,11 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
             "                hookFn = fn;\n\n"
             "                return geode::Mod::get()->hook(\n"
             "                    reinterpret_cast<void*>(geode::base::get() + address),\n"
-            "                    +[]({}* self{}) {{\n"
+            "                    +[]({}) {{\n"
             "                        sol::state_view __theSuperRawLuaState(globals::rawState);\n\n"
             "                        sol::environment env(__theSuperRawLuaState, sol::create, __theSuperRawLuaState.globals());\n"
-            "                        env[\"original\"] = []({}* self{}) {{\n"
-            "                            return self->{}({});\n"
+            "                        env[\"original\"] = []({}) {{\n"
+            "                            {}\n"
             "                        }};\n\n"
             "                        sol::set_environment(env, hookFn);\n"
             "                        {}\n"
@@ -70,10 +94,10 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
             "                );\n"
             "            }}\n"
         ),
-        cls.name, generateArgsFromFn(fn, true, true),
-        cls.name, generateArgsFromFn(fn, true, true),
-        fn->prototype.name, generateArgsFromFn(fn, false, false),
-        generateProperHookFnCall(fn),
+        generateHookSignature(cls, fn, true, true),
+        generateHookSignature(cls, fn, true, true),
+        generateOriginalCall(cls, fn),
+        generateProperHookFnCall(cls, fn),
         cls.name, fn->prototype.name
     );
 }
