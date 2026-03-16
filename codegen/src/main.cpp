@@ -71,6 +71,18 @@ std::string generateProperHookFnCall(broma::Class& cls, broma::FunctionBindField
     return buffer.str();
 }
 
+bool hasFuckassReferenceInArgs(broma::FunctionBindField* fn) {
+    for (const auto& arg : fn->prototype.args) {
+        std::string type = arg.first.name;
+
+        if (type.find("&") != std::string::npos) {
+            if (type.find("const") == std::string::npos) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) {
     std::ostringstream buffer;
@@ -138,6 +150,7 @@ int main(int argc, char* argv[]) {
                 if (func->prototype.ret.name == "TodoReturn") continue;
                 if (func->binds.win == -0x1 || func->binds.win == -0x2) continue; // skip inline and dont have win bindings
                 if (func->prototype.type == broma::FunctionType::Ctor || func->prototype.type == broma::FunctionType::Dtor) continue; // ignore constructors and destructors!
+                if (hasFuckassReferenceInArgs(func)) continue; // fuck your std::vector<int>&
                 std::string baseName = func->prototype.name;
                 int& count = overloadCount[baseName];
                 count++;
