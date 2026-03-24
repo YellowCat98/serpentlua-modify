@@ -62,5 +62,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
+          include-hidden-files: true
+          if-no-files-found: error
           name: Build
-          path:  ${{ github.workspace }}\.output\yellowcat98.modify.slp
+          path:  ${{ github.workspace }}\.output\**\*
