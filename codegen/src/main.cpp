@@ -165,6 +165,8 @@ int main(int argc, char* argv[]) {
         std::string& name = cls.name;
         file << fmt::format("    namespace _{} {{\n", name); // using _{} so it doesnt conflict with existing gd classes
 
+		std::string classHookRegistry;
+
         std::unordered_map<std::string, int> overloadCount;
 
         for (broma::Field& field : cls.fields) {
@@ -193,6 +195,7 @@ int main(int argc, char* argv[]) {
                 globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = CodegenDeps::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, finalName, cls.name, finalName, cls.name, finalName);
 
                 file << "        }\n";
+				classHookRegistry += fmt::format()
             }
         }
         file << "    }\n";

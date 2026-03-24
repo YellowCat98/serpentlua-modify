@@ -64,11 +64,15 @@ namespace CodegenData {
 				);
 			}
 		}
+
+		void populateHookRegistry() {
+			hookRegistry["MenuLayer_onMoreGames"] = CodegenDeps::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
+		}
 	}
 
 	// hookRegistry is just a teeny tiny way of retrieving a function through lua
 	void populateHookRegistry() {
-		hookRegistry["MenuLayer_onMoreGames"] = CodegenDeps::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
+		CodegenData::_MenuLayer::populateHookRegistry();
 	}
 }
 
