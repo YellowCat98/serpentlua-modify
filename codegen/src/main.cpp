@@ -188,7 +188,7 @@ int main(int argc, char* argv[]) {
                 file << fmt::format("            inline uintptr_t address = {:#x};\n", func->binds.win);
                 file << "            inline sol::function hookFn;\n";
 
-                file << generateCreateHook(cls, func); // generation ends here, this doesnt get called
+                file << generateCreateHook(cls, func);
 
                 globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = CodegenDeps::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, finalName, cls.name, finalName, cls.name, finalName);
 
