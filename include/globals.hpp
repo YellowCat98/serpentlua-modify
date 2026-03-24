@@ -14,7 +14,7 @@ struct globals {
 namespace CodegenDeps {
 	struct HookInfo {
 		HookInfo() = default;
-		HookInfo(uintptr_t address, geode::Result<geode::Hook*>(*createHook)(sol::function) createHook) : address(address), createHook(createHook), hooked(false) {}
+		HookInfo(uintptr_t address, geode::Result<geode::Hook*>(*createHookFn)(sol::function) createHook) : address(address), createHook(createHookFn), hooked(false) {}
 		uintptr_t address;
 		geode::Result<geode::Hook*>(*createHook)(sol::function);
 		bool hooked;
