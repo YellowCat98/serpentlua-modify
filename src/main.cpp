@@ -17,10 +17,13 @@ struct __metadata {
     const char* id;
     const char* version;
     const char* serpentVersion;
+	const char** plugins;
+	int pluginsSize;
 };
 
 struct SerpentLuaAPI {
     void (*log)(__metadata, const char*, const char*);
+	__metadata (*get_script)(lua_State*);
     __metadata metadata;
     HMODULE handle;
 };
@@ -46,17 +49,19 @@ namespace CodegenData {
 			geode::Result<geode::Hook*> createHook(sol::function fn) {
 				hookFn = fn;
 
+				sol::environment env(state, sol::create, state.globals());
+				env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender) {
+					return self->onMoreGames(sender);
+				};
+
+				sol::set_environment(env, hookFn);
+
 				return geode::Mod::get()->hook(
 					reinterpret_cast<void*>(geode::base::get() + address), // i should probably add another map that holds what the functions correspond to
 					+[](MenuLayer* self, cocos2d::CCObject* sender) {
 						sol::state_view state(globals::rawState);
 
-						sol::environment env(state, sol::create, state.globals());
-						env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender) {
-							return self->onMoreGames(sender);
-						};
-
-						sol::set_environment(env, hookFn);
+						
 						hookFn(self, sender);
 					},
 					"MenuLayer::onMoreGames",
