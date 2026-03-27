@@ -12,6 +12,7 @@ set(CMAKE_RC_COMPILER llvm-rc)
 
 set(SOURCES
     src/main.cpp
+    src/utils.cpp
 )
 
 add_library(yellowcat98_modify SHARED ${SOURCES})

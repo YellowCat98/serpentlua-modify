@@ -2,40 +2,22 @@
 #include <Windows.h>
 #include <sol/sol.hpp>
 #include <Geode/Geode.hpp>
-#include <globals.hpp>
+#include <yellowcat98.modify/globals.hpp>
+#include <yellowcat98.modify/utils.hpp>
 extern "C" {
 	#include <lua.h>
 	#include <lualib.h>
 	#include <lauxlib.h>
 }
 
-lua_State* globals::rawState = nullptr; // initialize the Member globals::rawState as nullptr.
-
-struct __metadata {
-    const char* name;
-    const char* developer;
-    const char* id;
-    const char* version;
-    const char* serpentVersion;
-	const char** plugins;
-	int pluginsSize;
-};
-
-struct SerpentLuaAPI {
-    void (*log)(__metadata, const char*, const char*);
-	__metadata (*get_script)(lua_State*);
-    __metadata metadata;
-    HMODULE handle;
-};
-
-static SerpentLuaAPI api;
+SerpentLuaAPI globals::api;
 
 extern "C" __declspec(dllexport) void initNativeAPI(SerpentLuaAPI toiletAPI) {
-	api = toiletAPI;
+	globals::api = toiletAPI;
 }
 
 void print(const std::string& msg, const char* type) {
-	api.log(api.metadata, msg.c_str(), type);
+	globals::api.log(globals::api.metadata, msg.c_str(), type);
 }
 
 
@@ -46,7 +28,8 @@ namespace CodegenData {
 		namespace onMoreGames {
 			inline uintptr_t address = 0x335740;
 			inline static sol::function hookFn;
-			geode::Result<geode::Hook*> createHook(sol::function fn) {
+			geode::Result<geode::Hook*> createHook(lua_State* L, sol::function fn) {
+				sol::state_view state(L);
 				hookFn = fn;
 
 				sol::environment env(state, sol::create, state.globals());
@@ -59,12 +42,9 @@ namespace CodegenData {
 				return geode::Mod::get()->hook(
 					reinterpret_cast<void*>(geode::base::get() + address), // i should probably add another map that holds what the functions correspond to
 					+[](MenuLayer* self, cocos2d::CCObject* sender) {
-						sol::state_view state(globals::rawState);
-
-						
 						hookFn(self, sender);
 					},
-					"MenuLayer::onMoreGames",
+					utils::prefixID(L, "MenuLayer::onMoreGames"),
 					tulip::hook::TulipConvention::Thiscall
 				);
 			}
@@ -85,26 +65,24 @@ namespace CodegenData {
 
 
 extern "C" __declspec(dllexport) void entry(lua_State* L) {
-	api.log(api.metadata, "Modify initialized!", "info");
+	globals::api.log(globals::api.metadata, "Modify initialized!", "info");
 
-	globals::rawState = L; // but is it now initialized as nullptr? i Dont fucking KNOW!!!!!!!!
-
-	sol::state_view state(globals::rawState);
+	sol::state_view state(L);
 
 	auto table = state.create_table();
 
 	CodegenData::populateHookRegistry();
 
 	table["hook"] = [](sol::this_state ts, std::string cls, std::string fn, sol::function function) {
-		
+		lua_State* L = ts;
 		auto cls_fn = fmt::format("{}_{}", cls, fn);
         if (!CodegenData::hookRegistry.contains(cls_fn)) {
-            api.log(api.metadata, fmt::format("{} Was not found in hookRegistry.", cls_fn).c_str(), "warn");
+            globals::api.log(globals::api.metadata, fmt::format("{} was not found in hookRegistry.", cls_fn).c_str(), "warn");
         }
 		auto& hookInfo = CodegenData::hookRegistry.at(cls_fn);
 		
 		if (hookInfo.hooked) {
-			api.log(api.metadata, fmt::format("{} was already hooked. (hookInfo.hooked == true)", cls_fn).c_str(), "warn");
+			globals::api.log(globals::api.metadata, fmt::format("{} was already hooked. (hookInfo.hooked == true)", cls_fn).c_str(), "warn");
 			return;
 		}
 
@@ -128,16 +106,16 @@ extern "C" __declspec(dllexport) void entry(lua_State* L) {
 			tulip::hook::TulipConvention::Thiscall
 		);*/
 
-		auto result = hookInfo.createHook(function);
+		auto result = hookInfo.createHook(L, function);
 
 		if (result.isErr()) {
-			api.log(api.metadata, fmt::format("Unable to apply hook: {}", *(result.err())).c_str(), "error");
+			globals::api.log(globals::api.metadata, fmt::format("Unable to apply hook: {}", *(result.err())).c_str(), "error");
 			return;
 		}
 		hookInfo.hooked = true;
 	};
 
-	state["serpentlua_modules"][std::string(api.metadata.id)] = [table]() {
+	state["serpentlua_modules"][std::string(globals::api.metadata.id)] = [table]() {
 		return table;
 	};
 }
