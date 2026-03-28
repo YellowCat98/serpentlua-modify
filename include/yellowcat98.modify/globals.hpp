@@ -26,17 +26,23 @@ struct SerpentLuaAPI {
     HMODULE handle;
 };
 
+struct ScriptContext {
+	std::unordered_map<std::string, std::shared_ptr<geode::Hook>> hooks;
+	lua_State* L;
+};
+
 struct globals {
+	static std::unordered_map<lua_State*, ScriptContext> contexts;
 	static SerpentLuaAPI api;
 };
+
 
 // things the codegen depends on
 namespace CodegenDeps {
 	struct HookInfo {
 		HookInfo() = default;
-		HookInfo(uintptr_t address, geode::Result<geode::Hook*>(*createHook)(lua_State*, sol::function)) : address(address), createHook(createHook), hooked(false) {}
+		HookInfo(uintptr_t address, std::shared_ptr<geode::Hook>(*createHook)(lua_State*, const std::string&, sol::function)) : address(address), createHook(createHook) {}
 		uintptr_t address;
-		geode::Result<geode::Hook*>(*createHook)(lua_State*, sol::function);
-		bool hooked;
+		std::shared_ptr<geode::Hook>(*createHook)(lua_State*, const std::string&, sol::function);
 	};
 };
