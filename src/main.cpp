@@ -2,7 +2,8 @@
 #include <Windows.h>
 #include <sol/sol.hpp>
 #include <Geode/Geode.hpp>
-#include <yellowcat98.modify/globals.hpp>
+#include <yellowcat98.modify/stuff.hpp>
+#include <yellowcat98.modify/Modify.hpp>
 #include <yellowcat98.modify/utils.hpp>
 extern "C" {
 	#include <lua.h>
@@ -10,21 +11,21 @@ extern "C" {
 	#include <lauxlib.h>
 }
 
-SerpentLuaAPI globals::api;
-std::unordered_map<lua_State*, ScriptContext> globals::contexts;
+SerpentLuaAPI Modify::api;
+std::unordered_map<lua_State*, Modify::ScriptContext> Modify::contexts;
 
 extern "C" __declspec(dllexport) void initNativeAPI(SerpentLuaAPI toiletAPI) {
-	globals::api = toiletAPI;
+	Modify::api = toiletAPI;
 }
 
 void print(const std::string& msg, const char* type) {
-	globals::api.log(globals::api.metadata, msg.c_str(), type);
+	Modify::api.log(Modify::api.metadata, msg.c_str(), type);
 }
 
 
 
 namespace CodegenData {
-	inline std::unordered_map<std::string, CodegenDeps::HookInfo> hookRegistry;
+	inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;
 	namespace _MenuLayer {
 		namespace onMoreGames {
 			inline uintptr_t address = 0x335740;
@@ -50,7 +51,7 @@ namespace CodegenData {
 				auto hook = geode::Hook::create(
 					reinterpret_cast<void*>(geode::base::get() + address),
 					detourPtr,
-					fmt::format("[SERPENTLUA MODIFY] MenuLayer::onMoreGames with ID {} for Script {}", utils::prefixID(L, id), globals::api.get_script(L).id),
+					fmt::format("[SERPENTLUA MODIFY] MenuLayer::onMoreGames with ID {} for Script {}", utils::prefixID(L, id), Modify::api.get_script(L).id),
 					tulip::hook::HandlerMetadata{
 						.m_convention = geode::hook::createConvention(tulip::hook::TulipConvention::Thiscall),
 						.m_abstract = tulip::hook::AbstractFunction::from(static_cast<void(*)(MenuLayer*, cocos2d::CCObject*)>(nullptr)),
@@ -63,7 +64,7 @@ namespace CodegenData {
 		}
 
 		void populateHookRegistry() {
-			hookRegistry["MenuLayer_onMoreGames"] = CodegenDeps::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
+			hookRegistry["MenuLayer_onMoreGames"] = Modify::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
 		}
 	}
 
@@ -77,12 +78,12 @@ namespace CodegenData {
 
 
 extern "C" __declspec(dllexport) void entry(lua_State* L) {
-	globals::api.log(globals::api.metadata, "Modify initialized!", "info");
+	Modify::api.log(Modify::api.metadata, "Modify initialized!", "info");
 
-	auto ctx = ScriptContext();
+	auto ctx = Modify::ScriptContext();
 	ctx.L = L;
 
-	globals::contexts[L] = ctx;
+	Modify::contexts[L] = ctx;
 
 	sol::state_view state(L);
 
@@ -94,40 +95,40 @@ extern "C" __declspec(dllexport) void entry(lua_State* L) {
 		lua_State* L = ts;
 		auto cls_fn = fmt::format("{}_{}", cls, fn);
         if (!CodegenData::hookRegistry.contains(cls_fn)) {
-            globals::api.log(globals::api.metadata, fmt::format("{} was not found in hookRegistry.", cls_fn).c_str(), "warn");
+            Modify::api.log(Modify::api.metadata, fmt::format("{} was not found in hookRegistry.", cls_fn).c_str(), "warn");
         }
 		auto& hookInfo = CodegenData::hookRegistry.at(cls_fn);
 		
-		if (globals::contexts[L].hooks.contains(utils::prefixID(L, id))) {
-			globals::api.log(globals::api.metadata, fmt::format("Cannot create hook with the same ID.", cls_fn).c_str(), "warn");
+		if (Modify::contexts[L].hooks.contains(utils::prefixID(L, id))) {
+			Modify::api.log(Modify::api.metadata, fmt::format("Cannot create hook with the same ID.", cls_fn).c_str(), "warn");
 			return;
 		}
 
 		auto result = hookInfo.createHook(L, id, function);
 
 		if (!result) {
-			globals::api.log(globals::api.metadata, "Failed to create hook.", "info");
+			Modify::api.log(Modify::api.metadata, "Failed to create hook.", "info");
 			return;
 		}
 
-		globals::contexts[L].hooks[utils::prefixID(L, id)] = result;
+		Modify::contexts[L].hooks[utils::prefixID(L, id)] = result;
 	};
 
 	table["applyHook"] = [](sol::this_state ts, std::string id) {
 		lua_State* L = ts;
-		if (!globals::contexts[L].hooks.contains(utils::prefixID(L, id))) {
-			globals::api.log(globals::api.metadata, "Failed to apply hook. Hook was not found.", "info");
+		if (!Modify::contexts[L].hooks.contains(utils::prefixID(L, id))) {
+			Modify::api.log(Modify::api.metadata, "Failed to apply hook. Hook was not found.", "info");
 			return;
 		}
 
-		auto res = globals::contexts[L].hooks[utils::prefixID(L, id)]->enable();
+		auto res = Modify::contexts[L].hooks[utils::prefixID(L, id)]->enable();
 		if (res.isErr()) {
-			globals::api.log(globals::api.metadata, fmt::format("Failed to apply hook: {}", *(res.err())).c_str(), "error");
+			Modify::api.log(Modify::api.metadata, fmt::format("Failed to apply hook: {}", *(res.err())).c_str(), "error");
 			return;
 		}
 	};
 
-	state["serpentlua_modules"][std::string(globals::api.metadata.id)] = [table]() {
+	state["serpentlua_modules"][std::string(Modify::api.metadata.id)] = [table]() {
 		return table;
 	};
 }
