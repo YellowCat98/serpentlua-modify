@@ -29,42 +29,68 @@ namespace CodegenData {
 	namespace _MenuLayer {
 		namespace onMoreGames {
 			inline uintptr_t address = 0x335740;
-			inline static sol::function hookFn;
+			inline static std::vector<sol::function> fucks;
+			inline static bool hooked = false;
+
+			static void callChain(size_t index, MenuLayer* self, cocos2d::CCObject* sender) {
+				if (index >= fucks.size()) {
+					self->onMoreGames(sender);
+					return;
+				}
+
+				auto& fn = fucks[index];
+
+				sol::state_view state(fn.lua_state());
+				sol::environment env = sol::get_environment(fn);
+
+				env["original"] = [index](MenuLayer* self, cocos2d::CCObject* sender) {
+					callChain(index+1, self, sender);
+				};
+
+				fn(self, sender);
+			}
 
 			static void detour(MenuLayer* self, cocos2d::CCObject* sender) {
-				hookFn(self, sender);
+				callChain(0, self, sender);
 			}
 
 			std::shared_ptr<geode::Hook> createHook(lua_State* L, const std::string& id, sol::function fn) {
 				sol::state_view state(L);
-				hookFn = fn;
 
 				sol::environment env(state, sol::create, state.globals());
-				env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender) {
-					return self->onMoreGames(sender);
-				};
+				env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender){};
 
 				sol::set_environment(env, fn);
 
 				void* detourPtr = reinterpret_cast<void*>(&_MenuLayer::onMoreGames::detour);
 
-				auto hook = geode::Hook::create(
-					reinterpret_cast<void*>(geode::base::get() + address),
-					detourPtr,
-					fmt::format("[SERPENTLUA MODIFY] MenuLayer::onMoreGames with ID {} for Script {}", utils::prefixID(L, id), Modify::api.get_script(L).id),
-					tulip::hook::HandlerMetadata{
-						.m_convention = geode::hook::createConvention(tulip::hook::TulipConvention::Thiscall),
-						.m_abstract = tulip::hook::AbstractFunction::from(static_cast<void(*)(MenuLayer*, cocos2d::CCObject*)>(nullptr)),
-					},
-					tulip::hook::HookMetadata{}
-				);
+				std::shared_ptr<geode::Hook> hook;
+
+				if (!_MenuLayer::onMoreGames::hooked) {
+					hook = geode::Hook::create(
+						reinterpret_cast<void*>(geode::base::get() + address),
+						detourPtr,
+						"[SERPENTLUA MODIFY] MenuLayer::onMoreGames",
+						tulip::hook::HandlerMetadata{
+							.m_convention = geode::hook::createConvention(tulip::hook::TulipConvention::Thiscall),
+							.m_abstract = tulip::hook::AbstractFunction::from(static_cast<void(*)(MenuLayer*, cocos2d::CCObject*)>(nullptr)),
+						},
+						tulip::hook::HookMetadata{}
+					);
+					auto res = hook->enable();
+					hooked = true;
+					if (res.isErr()) {
+						Modify::api.log(Modify::api.metadata, fmt::format("Failed to enable hook: {}", *(res.err())).c_str(), "error");
+						return hook;
+					}
+				}
 
 				return hook;
 			}
 		}
 
 		void populateHookRegistry() {
-			hookRegistry["MenuLayer_onMoreGames"] = Modify::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook);
+			hookRegistry.emplace("MenuLayer_onMoreGames", Modify::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook, CodegenData::_MenuLayer::onMoreGames::fucks));
 		}
 	}
 
@@ -96,36 +122,45 @@ extern "C" __declspec(dllexport) void entry(lua_State* L) {
 		auto cls_fn = fmt::format("{}_{}", cls, fn);
         if (!CodegenData::hookRegistry.contains(cls_fn)) {
             Modify::api.log(Modify::api.metadata, fmt::format("{} was not found in hookRegistry.", cls_fn).c_str(), "warn");
+			return;
         }
 		auto& hookInfo = CodegenData::hookRegistry.at(cls_fn);
 		
 		if (Modify::contexts[L].hooks.contains(utils::prefixID(L, id))) {
-			Modify::api.log(Modify::api.metadata, fmt::format("Cannot create hook with the same ID.", cls_fn).c_str(), "warn");
+			Modify::api.log(Modify::api.metadata, "Cannot create hook with the same ID.", "warn");
 			return;
 		}
 
-		auto result = hookInfo.createHook(L, id, function);
+		auto result = hookInfo.createHook(L, id, function); // no need to check if result is nullptr, nullptr means its already hooked! (or failed lol)
 
-		if (!result) {
-			Modify::api.log(Modify::api.metadata, "Failed to create hook.", "info");
-			return;
-		}
-
-		Modify::contexts[L].hooks[utils::prefixID(L, id)] = result;
+		Modify::contexts[L].hooks[utils::prefixID(L, id)] = Modify::HookEntry{ // i can actually do this instead of all that bs no way
+			.hook = result,
+			.id = utils::prefixID(L, id),
+			.cls = cls,
+			.fn = fn,
+			.babyDetour = function,
+			.applied = false
+		};
 	};
 
 	table["applyHook"] = [](sol::this_state ts, std::string id) {
 		lua_State* L = ts;
 		if (!Modify::contexts[L].hooks.contains(utils::prefixID(L, id))) {
-			Modify::api.log(Modify::api.metadata, "Failed to apply hook. Hook was not found.", "info");
+			Modify::api.log(Modify::api.metadata, "Failed to apply hook. Hook was not found.", "error");
 			return;
 		}
 
-		auto res = Modify::contexts[L].hooks[utils::prefixID(L, id)]->enable();
-		if (res.isErr()) {
-			Modify::api.log(Modify::api.metadata, fmt::format("Failed to apply hook: {}", *(res.err())).c_str(), "error");
+		auto cls_fn = fmt::format("{}_{}", Modify::contexts[L].hooks[utils::prefixID(L, id)].cls, Modify::contexts[L].hooks[utils::prefixID(L, id)].fn);
+
+		auto& hookInfo = CodegenData::hookRegistry.at(cls_fn);
+
+		if (Modify::contexts[L].hooks[utils::prefixID(L, id)].applied) {
+			Modify::api.log(Modify::api.metadata, "Cannot call `applyHook` more than once on the same ID.", "warn");
 			return;
 		}
+
+		hookInfo.fucks.push_back(Modify::contexts[L].hooks[utils::prefixID(L, id)].babyDetour);
+		Modify::contexts[L].hooks[utils::prefixID(L, id)].applied = true;
 	};
 
 	state["serpentlua_modules"][std::string(Modify::api.metadata.id)] = [table]() {

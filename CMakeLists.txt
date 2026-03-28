@@ -61,6 +61,9 @@ add_custom_command(
 )
 
 add_custom_target(serpentlua_res DEPENDS ${RESOURCE_OUTPUT})
+target_compile_options(${PROJECT_NAME} PRIVATE # shut the fuck up compiler
+    $<$<CXX_COMPILER_ID:Clang>:-Wno-character-conversion>
+)
 
 add_dependencies(yellowcat98_modify serpentlua_res)
 target_link_options(yellowcat98_modify PRIVATE ${RESOURCE_OUTPUT})
