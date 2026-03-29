@@ -126,7 +126,7 @@ std::string generateCallChain(broma::Class& cls, broma::FunctionBindField* fn) {
             "                }}\n\n"
             "                auto& hookFn = __fucks[__index];\n\n"
 
-            "                sol::state_view state(hookFn.lua_state());\n"
+            "                sol::state_view __AWESOMESTATELETSGO(hookFn.lua_state());\n"
             "                sol::environment env = sol::get_environment(hookFn);\n\n"
             "                env[\"original\"] = [__index]({}) {{\n"
             "                    return callChain(__index+1{});\n"
@@ -159,7 +159,7 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
     return fmt::format(
         fmt::runtime(
             "            geode::Result<std::shared_ptr<geode::Hook>> createHook(lua_State* L, const std::string& id, sol::function fn) {{\n"
-            "                sol::state_view state(L);\n\n"
+            "                sol::state_view __AWESOMESTATELETSGO(L);\n\n"
             "                void* detourPtr = reinterpret_cast<void*>(&_{}::{}::detour);\n\n"
             "                std::shared_ptr<geode::Hook> __hook;\n\n"
             "                if (!__hooked) {{\n"
