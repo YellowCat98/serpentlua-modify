@@ -205,9 +205,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::ofstream file("lindings.cpp", std::ios::app);
+    std::filesystem::create_directory("lindings");
 
-    file <<
+    std::ofstream father("lindings/lindings_father.cpp", std::ios::app);
+
+    father <<
+        "// Solely contains definition of our lovely classes.\n"
         "#include <Geode/Geode.hpp>\n"
         "#include <globals.hpp>\n"
         "#include <sol/sol.hpp>\n\n"
@@ -218,6 +221,17 @@ int main(int argc, char* argv[]) {
     for (broma::Class& cls : root.classes) {
         std::string hookRegistryForClass;
         std::string& name = cls.name;
+        father << fmt::format("    namespace _{} {{ void populateHookRegistry(); }}\n", name);
+        std::ofstream file(fmt::format("lindings/lindings_{}.cpp", name), std::ios::app);
+
+        file <<
+            "// Solely contains definition of our lovely classes.\n"
+            "#include <Geode/Geode.hpp>\n"
+            "#include <globals.hpp>\n"
+            "#include <sol/sol.hpp>\n\n"
+            "namespace CodegenData {\n"
+            "    inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
+
         file << fmt::format("    namespace _{} {{\n", name); // using _{} so it doesnt conflict with existing gd classes
 
         std::unordered_map<std::string, int> overloadCount;
@@ -262,13 +276,13 @@ int main(int argc, char* argv[]) {
 
         globals::hookRegistryItems += fmt::format("        CodegenData::_{}::populateHookRegistry();\n", cls.name);
 
-        file << "    }\n";
+        file << "    }\n}";
     }
-    file << "    void populateHookRegistry() {\n"
+    father << "    void populateHookRegistry() {\n"
     << globals::hookRegistryItems
     << "    }\n";
 
-    file << "}";
+    father << "}";
 
     return 0;
 }
