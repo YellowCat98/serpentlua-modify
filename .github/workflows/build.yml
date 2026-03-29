@@ -56,7 +56,14 @@ jobs:
 
       - name: Compile
         run: |
-          cmake -B build -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          $clangPath = (Get-Command clang++).Source
+          $clangCPath = (Get-Command clang).Source
+          cmake -B build -G "Ninja" `
+            -DCMAKE_C_COMPILER="$clangCPath" `
+            -DCMAKE_CXX_COMPILER="$clangPath" `
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build --config RelWithDebInfo
 
       - name: Upload
