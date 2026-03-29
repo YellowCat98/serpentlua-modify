@@ -50,6 +50,7 @@ jobs:
           geode profile add --name helloWorld C:/ # dont need a profile but it refuses to run without one
           echo y | geode sdk install
           echo "GEODE_SDK=C:\Users\runneradmin\Documents\Geode" >> $env:GITHUB_ENV
+          echo "$env:USERPROFILE\scoop\shims" >> $env:GITHUB_PATH
 
       - name: Install Geode Binaries
         run: geode sdk install-binaries
