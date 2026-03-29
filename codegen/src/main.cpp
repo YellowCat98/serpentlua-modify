@@ -159,13 +159,11 @@ int main(int argc, char* argv[]) {
         "#include <globals.hpp>\n"
         "#include <sol/sol.hpp>\n\n"
         "namespace CodegenData {\n"
-        "    inline std::unordered_map<std::string, CodegenDeps::HookInfo> hookRegistry;\n\n";
+        "    inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
 
     for (broma::Class& cls : root.classes) {
         std::string& name = cls.name;
         file << fmt::format("    namespace _{} {{\n", name); // using _{} so it doesnt conflict with existing gd classes
-
-		std::string classHookRegistry;
 
         std::unordered_map<std::string, int> overloadCount;
 
@@ -188,14 +186,14 @@ int main(int argc, char* argv[]) {
                 file << fmt::format("        namespace {} {{\n", finalName);
                 
                 file << fmt::format("            inline uintptr_t address = {:#x};\n", func->binds.win);
-                file << "            inline sol::function hookFn;\n";
+                file << "            inline std::vector<sol::function> __fucks;\n";
+                file << "            inline bool __hooked = false;"
 
                 file << generateCreateHook(cls, func);
 
-                globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = CodegenDeps::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, finalName, cls.name, finalName, cls.name, finalName);
+                globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = Modify::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, finalName, cls.name, finalName, cls.name, finalName);
 
                 file << "        }\n";
-				classHookRegistry += fmt::format()
             }
         }
         file << "    }\n";

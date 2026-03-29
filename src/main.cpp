@@ -29,8 +29,8 @@ namespace CodegenData {
 	namespace _MenuLayer {
 		namespace onMoreGames {
 			inline uintptr_t address = 0x335740;
-			inline static std::vector<sol::function> fucks;
-			inline static bool hooked = false;
+			inline std::vector<sol::function> fucks;
+			inline bool hooked = false;
 
 			static void callChain(size_t index, MenuLayer* self, cocos2d::CCObject* sender) {
 				if (index >= fucks.size()) {
@@ -54,13 +54,8 @@ namespace CodegenData {
 				callChain(0, self, sender);
 			}
 
-			std::shared_ptr<geode::Hook> createHook(lua_State* L, const std::string& id, sol::function fn) {
+			geode::Result<std::shared_ptr<geode::Hook>> createHook(lua_State* L, const std::string& id, sol::function fn) {
 				sol::state_view state(L);
-
-				sol::environment env(state, sol::create, state.globals());
-				env["original"] = [](MenuLayer* self, cocos2d::CCObject* sender){};
-
-				sol::set_environment(env, fn);
 
 				void* detourPtr = reinterpret_cast<void*>(&_MenuLayer::onMoreGames::detour);
 
@@ -80,12 +75,11 @@ namespace CodegenData {
 					auto res = hook->enable();
 					hooked = true;
 					if (res.isErr()) {
-						Modify::api.log(Modify::api.metadata, fmt::format("Failed to enable hook: {}", *(res.err())).c_str(), "error");
-						return hook;
+						return geode::Err("Failed to enable hook: {}", *(res.err()));
 					}
 				}
 
-				return hook;
+				return geode::Ok(hook);
 			}
 		}
 
@@ -133,8 +127,13 @@ extern "C" __declspec(dllexport) void entry(lua_State* L) {
 
 		auto result = hookInfo.createHook(L, id, function); // no need to check if result is nullptr, nullptr means its already hooked! (or failed lol)
 
+		if (result.isErr()) {
+			Modify::api.log(Modify::api.metadata, (*(result.err())).c_str(), "err");
+			return;
+		}
+
 		Modify::contexts[L].hooks[utils::prefixID(L, id)] = Modify::HookEntry{ // i can actually do this instead of all that bs no way
-			.hook = result,
+			.hook = result.unwrap(),
 			.id = utils::prefixID(L, id),
 			.cls = cls,
 			.fn = fn,

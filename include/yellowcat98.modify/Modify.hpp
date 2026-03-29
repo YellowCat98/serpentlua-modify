@@ -26,11 +26,11 @@ namespace Modify {
 		HookInfo() = delete;
 		HookInfo(
 			uintptr_t address,
-			std::shared_ptr<geode::Hook>(*createHook)(lua_State*, const std::string&, sol::function),
+			geode::Result<std::shared_ptr<geode::Hook>>(*createHook)(lua_State*, const std::string&, sol::function),
 			std::vector<sol::function>& fucksRef
 		) : address(address), createHook(createHook), fucks(fucksRef) {}
 		uintptr_t address;
-		std::shared_ptr<geode::Hook>(*createHook)(lua_State*, const std::string&, sol::function);
+		geode::Result<std::shared_ptr<geode::Hook>>(*createHook)(lua_State*, const std::string&, sol::function);
 		bool hooked; // this only exists so that createHook wouldnt create multiple hooks and instead only add to the call chain
 		std::vector<sol::function>& fucks;
 	};
