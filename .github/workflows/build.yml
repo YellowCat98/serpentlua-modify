@@ -42,9 +42,8 @@ jobs:
         with:
           buckets: extras
 
-      - name: Setup Geode and sccache
+      - name: Setup Geode
         run: |
-          scoop install sccache
           scoop bucket add extras
           scoop install geode-sdk-cli
           geode profile add --name helloWorld C:/ # dont need a profile but it refuses to run without one
@@ -62,8 +61,6 @@ jobs:
           cmake -B build -G "Ninja" `
             -DCMAKE_C_COMPILER="$clangCPath" `
             -DCMAKE_CXX_COMPILER="$clangPath" `
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build --config RelWithDebInfo
 
