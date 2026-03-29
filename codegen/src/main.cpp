@@ -32,7 +32,7 @@ std::string handleContainerAnnoyingBullshit(std::pair<broma::Type, std::string> 
     return name;
 }
 
-std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma, bool withTypes, bool handleAnnoyingBullshit) {
+std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma, bool withTypes, bool withNames, bool handleAnnoyingBullshit) {
     std::ostringstream buffer;
 
     auto args = fn->prototype.args;
@@ -40,13 +40,21 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
     if (startWithComma) buffer << ", ";
 
     for (const auto& arg : args) {
-        if (withTypes)
-            buffer << arg.first.name << " " << arg.second << ", ";
-        else
-            if (handleAnnoyingBullshit)
-                buffer << handleContainerAnnoyingBullshit(arg) << ", ";
+        if (withTypes) {
+            if (withNames)
+                buffer << arg.first.name << " " << arg.second;
             else
-                buffer << arg.second << ", ";
+                buffer << arg.first.name;
+        } else {
+            if (withNames) {
+                if (handleAnnoyingBullshit)
+                    buffer << handleContainerAnnoyingBullshit(arg);
+                else
+                    buffer << arg.second;
+            }
+        }
+
+        buffer << ", ";
     }
 
     auto str = buffer.str();
@@ -57,13 +65,13 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
     return str;
 }
 
-std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool withTypes, bool selfPrefix, bool handleAnnoyingBullshit) {
-    if (fn->prototype.is_static) return generateArgsFromFn(fn, false, withTypes, handleAnnoyingBullshit);
+std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool withTypes, bool selfPrefix, bool withNames, bool handleAnnoyingBullshit) {
+    if (fn->prototype.is_static) return generateArgsFromFn(fn, false, withTypes, withNames, handleAnnoyingBullshit);
 
 
     std::string ret = withTypes
-        ? fmt::format("{}{}", selfPrefix ? fmt::format("{}* self", cls.name) : "", generateArgsFromFn(fn, selfPrefix, withTypes, handleAnnoyingBullshit))
-        : fmt::format("{}{}", selfPrefix ? "self" : "", generateArgsFromFn(fn, selfPrefix, withTypes, handleAnnoyingBullshit));
+        ? fmt::format("{}{}", selfPrefix ? (withNames ? fmt::format("{}* self", cls.name) : fmt::format("{}*", cls.name)) : "", generateArgsFromFn(fn, selfPrefix, withTypes, withNames, handleAnnoyingBullshit))
+        : fmt::format("{}{}", selfPrefix ? "self" : "", generateArgsFromFn(fn, selfPrefix, withTypes, withNames, handleAnnoyingBullshit));
 
     return ret;
 }
@@ -72,9 +80,9 @@ std::string generateOriginalCall(broma::Class& cls, broma::FunctionBindField* fn
     std::string finalCall;
 
     if (fn->prototype.is_static) {
-        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false, false));
+        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false, true, false));
     } else {
-        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false, false));
+        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false, true, false));
     }
 
     return finalCall;
@@ -84,9 +92,9 @@ std::string generateProperHookFnCall(broma::Class& cls, broma::FunctionBindField
     std::ostringstream buffer;
 
     if (fn->prototype.ret.name == "void") {
-        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, true, true));
+        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, true, true, true));
     } else {
-        buffer << fmt::format("sol::object __TheGreatResultOfAllTime = hookFn({});\n", generateHookSignature(cls, fn, false, true, true));
+        buffer << fmt::format("sol::object __TheGreatResultOfAllTime = hookFn({});\n", generateHookSignature(cls, fn, false, true, true, true));
         buffer << fmt::format("                        return __TheGreatResultOfAllTime.as<{}>();", fn->prototype.ret.name);
     }
 
@@ -106,33 +114,75 @@ bool hasBullshitSol2DoesntLike(broma::FunctionBindField* fn) {
     return false;
 }
 
+std::string generateCallChain(broma::Class& cls, broma::FunctionBindField* fn) {
+    return fmt::format(
+        fmt::runtime(
+            "            static {} callChain(size_t __index, {}) {{\n"
+            "                if (__index >= __fucks.size()) {{\n"
+            "                    {}\n"
+            "                }}\n\n"
+            "                auto& hookFn = __fucks[__index];\n\n"
+
+            "                sol::state_view state(hookFn.lua_state());\n"
+            "                sol::environment env = sol::get_environment(hookFn);\n\n"
+            "                env[\"original\"] = [__index]({}) {{\n"
+            "                    return callChain(__index+1, {});\n"
+            "                }};\n"
+            "                {}\n"
+            "            }}\n"
+        ),
+        fn->prototype.ret.name,
+        generateHookSignature(cls, fn, true, true, true, false),
+        generateOriginalCall(cls, fn),
+        generateHookSignature(cls, fn, true, true, true, false),
+        generateHookSignature(cls, fn, false, true, true, false),
+        generateProperHookFnCall(cls, fn)
+    );
+}
+
+std::string generateDetour(broma::Class& cls, broma::FunctionBindField* fn) {
+    return fmt::format(
+        "            static {} detour({}) {{\n"
+        "                return callChain(0, {});\n"
+        "            }}\n\n",
+        fn->prototype.ret.name,
+        generateHookSignature(cls, fn, true, true, true, false),
+        generateHookSignature(cls, fn, false, true, true, false)
+    );
+}
+
 std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) {
     std::ostringstream buffer;
     return fmt::format(
         fmt::runtime(
-            "            geode::Result<geode::Hook*> createHook(sol::function fn) {{\n"
-            "                hookFn = fn;\n\n"
-            "                return geode::Mod::get()->hook(\n"
-            "                    reinterpret_cast<void*>(geode::base::get() + address),\n"
-            "                    +[]({}) {{\n"
-            "                        sol::state_view __theSuperRawLuaState(globals::rawState);\n\n"
-            "                        sol::environment env(__theSuperRawLuaState, sol::create, __theSuperRawLuaState.globals());\n"
-            "                        env[\"original\"] = []({}) {{\n"
-            "                            {}\n"
-            "                        }};\n\n"
-            "                        sol::set_environment(env, hookFn);\n"
-            "                        {}\n"
-            "                    }},\n"
-            "                    \"{}::{}\",\n"
-            "                    tulip::hook::TulipConvention::Thiscall\n"
-            "                );\n"
-            "            }}\n"
+            "            geode::Result<std::shared_ptr<geode::Hook>> createHook(lua_State* L, const std::string& id, sol::function fn) {{\n"
+            "                sol::state_view state(L);\n\n"
+            "                void* detourPtr = reinterpret_cast<void*>(&_{}::{}::detour);\n\n"
+            "                std::shared_ptr<geode::Hook> __hook;\n\n"
+            "                if (!__hooked) {{\n"
+            "                    __hook = geode::Hook::create(\n"
+            "                        reinterpret_cast<void*>(geode::base::get() + address),\n"
+            "                        detourPtr,\n"
+            "                        \"[SERPENTLUA MODIFY] {}::{}\",\n"
+            "                        tulip::hook::HandlerMetadata{{\n"
+            "                            .m_convention = geode::hook::createConvention(tulip::hook::TulipConvention::Thiscall),\n"
+            "                            .m_abstract = tulip::hook::AbstractFunction::from(static_cast<{}(*)({})>(nullptr)),\n"
+            "                        }},\n"
+            "                        tulip::hook::HookMetadata{{}}\n"
+            "                    );\n"
+            "                    auto res = __hook->enable();\n"
+            "                    __hooked = true;\n"
+            "                    if (res.isErr()) {{\n"
+            "                        return geode::Err(\"Failed to enable hook: {{}}\", *(res.err()));\n"
+            "                    }}\n"
+            "                }}\n"
+            "                return geode::Ok(__hook);\n"
+            "            }}\n\n"
         ),
-        generateHookSignature(cls, fn, true, true, false),
-        generateHookSignature(cls, fn, true, true, false),
-        generateOriginalCall(cls, fn),
-        generateProperHookFnCall(cls, fn),
-        cls.name, fn->prototype.name
+        cls.name, fn->prototype.name,
+        cls.name, fn->prototype.name,
+        fn->prototype.ret.name,
+        generateHookSignature(cls, fn, true, true, false, false)
     );
 }
 
@@ -161,7 +211,9 @@ int main(int argc, char* argv[]) {
         "namespace CodegenData {\n"
         "    inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
 
+
     for (broma::Class& cls : root.classes) {
+        std::string hookRegistryForClass;
         std::string& name = cls.name;
         file << fmt::format("    namespace _{} {{\n", name); // using _{} so it doesnt conflict with existing gd classes
 
@@ -187,15 +239,26 @@ int main(int argc, char* argv[]) {
                 
                 file << fmt::format("            inline uintptr_t address = {:#x};\n", func->binds.win);
                 file << "            inline std::vector<sol::function> __fucks;\n";
-                file << "            inline bool __hooked = false;"
+                file << "            inline bool __hooked = false;\n\n";
+
+                file << generateCallChain(cls, func);
+
+                file << generateDetour(cls, func);
 
                 file << generateCreateHook(cls, func);
 
-                globals::hookRegistryItems += fmt::format("        hookRegistry[\"{}_{}\"] = Modify::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook);\n", cls.name, finalName, cls.name, finalName, cls.name, finalName);
+                hookRegistryForClass += fmt::format("        hookRegistry.emplace(\"{}_{}\", Modify::HookInfo(CodegenData::_{}::{}::address, CodegenData::_{}::{}::createHook, CodegenData::_{}::{}::__fucks));\n", cls.name, finalName, cls.name, finalName, cls.name, finalName, cls.name, finalName);
 
-                file << "        }\n";
+                file << "        }\n\n";
             }
         }
+        file
+            << "        void populateHookRegistry() {\n"
+            << hookRegistryForClass
+            << "        }\n\n";
+
+        globals::hookRegistryItems += fmt::format("        CodegenData::_{}::populateHookRegistry();\n", cls.name);
+
         file << "    }\n";
     }
     file << "    void populateHookRegistry() {\n"
