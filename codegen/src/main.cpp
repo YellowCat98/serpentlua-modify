@@ -65,13 +65,16 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
     return str;
 }
 
-std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool withTypes, bool selfPrefix, bool withNames, bool handleAnnoyingBullshit) {
-    if (fn->prototype.is_static) return generateArgsFromFn(fn, false, withTypes, withNames, handleAnnoyingBullshit);
+std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool startWithComma, bool withTypes, bool selfPrefix, bool withNames, bool handleAnnoyingBullshit) {
+    if (fn->prototype.is_static) {
+        if (fn->prototype.args.empty()) return "";
+        return generateArgsFromFn(fn, false, withTypes, withNames, handleAnnoyingBullshit);
+    }
 
 
     std::string ret = withTypes
-        ? fmt::format("{}{}", selfPrefix ? (withNames ? fmt::format("{}* self", cls.name) : fmt::format("{}*", cls.name)) : "", generateArgsFromFn(fn, selfPrefix, withTypes, withNames, handleAnnoyingBullshit))
-        : fmt::format("{}{}", selfPrefix ? "self" : "", generateArgsFromFn(fn, selfPrefix, withTypes, withNames, handleAnnoyingBullshit));
+        ? fmt::format("{}{}", selfPrefix ? (withNames ? fmt::format("{}{}* self", (startWithComma ? ", " : ""), cls.name) : fmt::format("{}*", cls.name)) : "", generateArgsFromFn(fn, selfPrefix, withTypes, withNames, handleAnnoyingBullshit))
+        : fmt::format("{}{}", selfPrefix ? (startWithComma ? ", self" : "self") : "", generateArgsFromFn(fn, selfPrefix, withTypes, withNames, handleAnnoyingBullshit));
 
     return ret;
 }
@@ -80,9 +83,9 @@ std::string generateOriginalCall(broma::Class& cls, broma::FunctionBindField* fn
     std::string finalCall;
 
     if (fn->prototype.is_static) {
-        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false, true, false));
+        finalCall = fmt::format("return {}::{}({});", cls.name, fn->prototype.name, generateHookSignature(cls, fn, false, false, false, true, false));
     } else {
-        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false, true, false));
+        finalCall = fmt::format("return self->{}({});", fn->prototype.name, generateHookSignature(cls, fn, false, false, false, true, false));
     }
 
     return finalCall;
@@ -92,9 +95,9 @@ std::string generateProperHookFnCall(broma::Class& cls, broma::FunctionBindField
     std::ostringstream buffer;
 
     if (fn->prototype.ret.name == "void") {
-        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, true, true, true));
+        buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, false, true, true, true));
     } else {
-        buffer << fmt::format("sol::object __TheGreatResultOfAllTime = hookFn({});\n", generateHookSignature(cls, fn, false, true, true, true));
+        buffer << fmt::format("sol::object __TheGreatResultOfAllTime = hookFn({});\n", generateHookSignature(cls, fn, false, false, true, true, true));
         buffer << fmt::format("                        return __TheGreatResultOfAllTime.as<{}>();", fn->prototype.ret.name);
     }
 
@@ -117,7 +120,7 @@ bool hasBullshitSol2DoesntLike(broma::FunctionBindField* fn) {
 std::string generateCallChain(broma::Class& cls, broma::FunctionBindField* fn) {
     return fmt::format(
         fmt::runtime(
-            "            static {} callChain(size_t __index, {}) {{\n"
+            "            static {} callChain(size_t __index{}) {{\n"
             "                if (__index >= __fucks.size()) {{\n"
             "                    {}\n"
             "                }}\n\n"
@@ -126,16 +129,16 @@ std::string generateCallChain(broma::Class& cls, broma::FunctionBindField* fn) {
             "                sol::state_view state(hookFn.lua_state());\n"
             "                sol::environment env = sol::get_environment(hookFn);\n\n"
             "                env[\"original\"] = [__index]({}) {{\n"
-            "                    return callChain(__index+1, {});\n"
+            "                    return callChain(__index+1{});\n"
             "                }};\n"
             "                {}\n"
             "            }}\n"
         ),
         fn->prototype.ret.name,
-        generateHookSignature(cls, fn, true, true, true, false),
+        generateHookSignature(cls, fn, true, true, true, true, false),
         generateOriginalCall(cls, fn),
-        generateHookSignature(cls, fn, true, true, true, false),
-        generateHookSignature(cls, fn, false, true, true, false),
+        generateHookSignature(cls, fn, false, true, true, true, false),
+        generateHookSignature(cls, fn, true, false, true, true, false),
         generateProperHookFnCall(cls, fn)
     );
 }
@@ -143,11 +146,11 @@ std::string generateCallChain(broma::Class& cls, broma::FunctionBindField* fn) {
 std::string generateDetour(broma::Class& cls, broma::FunctionBindField* fn) {
     return fmt::format(
         "            static {} detour({}) {{\n"
-        "                return callChain(0, {});\n"
+        "                return callChain(0{});\n"
         "            }}\n\n",
         fn->prototype.ret.name,
-        generateHookSignature(cls, fn, true, true, true, false),
-        generateHookSignature(cls, fn, false, true, true, false)
+        generateHookSignature(cls, fn, false, true, true, true, false),
+        generateHookSignature(cls, fn, true, false, true, true, false)
     );
 }
 
@@ -182,7 +185,7 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
         cls.name, fn->prototype.name,
         cls.name, fn->prototype.name,
         fn->prototype.ret.name,
-        generateHookSignature(cls, fn, true, true, false, false)
+        generateHookSignature(cls, fn, false, true, true, false, false)
     );
 }
 
