@@ -68,7 +68,7 @@ std::string generateArgsFromFn(broma::FunctionBindField* fn, bool startWithComma
 std::string generateHookSignature(broma::Class& cls, broma::FunctionBindField* fn, bool startWithComma, bool withTypes, bool selfPrefix, bool withNames, bool handleAnnoyingBullshit) {
     if (fn->prototype.is_static) {
         if (fn->prototype.args.empty()) return "";
-        return generateArgsFromFn(fn, false, withTypes, withNames, handleAnnoyingBullshit);
+        return generateArgsFromFn(fn, startWithComma, withTypes, withNames, handleAnnoyingBullshit);
     }
 
 
