@@ -15,19 +15,13 @@ CPMAddPackage(
 CPMAddPackage(
     NAME fmt
     GITHUB_REPOSITORY fmtlib/fmt
-    GIT_TAG 12.0.0
-)
-
-CPMAddPackage(
-    NAME GeodeResult
-    GITHUB_REPOSITORY geode-sdk/result
-    VERSION 1.3.4
+    GIT_TAG 12.1.0
 )
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Broma fmt::fmt GeodeResult)
+target_link_libraries(${PROJECT_NAME} PRIVATE Broma fmt::fmt)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/.output"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/.codegen_binaries"
 )

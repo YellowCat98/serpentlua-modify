@@ -1,18 +1,59 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.22)
 project(yellowcat98_modify LANGUAGES C CXX RC)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(cmake/CPM.cmake)
+include(ExternalProject)
 
 set(CMAKE_RC_COMPILER llvm-rc)
+
+set(CODEGEN_BINARY "${CMAKE_SOURCE_DIR}/codegen/.codegen_binaries/sl_codegen_lindings.exe")
+set(GENERATED_FOLDER "${CMAKE_SOURCE_DIR}/__generated_lindings")
+
+file(REMOVE_RECURSE "${CMAKE_SOURCE_DIR}/__generated_lindings")
+file(MAKE_DIRECTORY "${CMAKE_SOURCE_DIR}/__generated_lindings")
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -B ${CMAKE_BINARY_DIR}/__codegen_build -G "Ninja"
+        -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+        -DCMAKE_BUILD_TYPE=Release
+        -S ${CMAKE_SOURCE_DIR}/codegen
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE _cfg
+)
+if(NOT _cfg EQUAL 0)
+    message(FATAL_ERROR "[modify] Codegen configure failed")
+endif()
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/__codegen_build --config Release
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE _build
+)
+if(NOT _build EQUAL 0)
+    message(FATAL_ERROR "[modify] Codegen build failed")
+endif()
+
+
+execute_process(
+    COMMAND "${CODEGEN_BINARY}" "${CMAKE_SOURCE_DIR}/lindings.bro" "${GENERATED_FOLDER}"
+    RESULT_VARIABLE _gen
+)
+
+if(NOT _gen EQUAL 0)
+    message(FATAL_ERROR "[modify] Codegen execution failed")
+endif()
+
+include(${CMAKE_SOURCE_DIR}/__generated_lindings/__lindings_generated.cmake)
+
 
 set(SOURCES
     src/main.cpp
     src/utils.cpp
 )
 
-add_library(yellowcat98_modify SHARED ${SOURCES})
+add_library(yellowcat98_modify SHARED ${SOURCES} ${__GENERATED_LINDINGS_SOURCES})
 
 set_target_properties(yellowcat98_modify PROPERTIES
     OUTPUT_NAME "yellowcat98.modify"

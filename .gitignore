@@ -66,5 +66,8 @@ build-*/
 .output
 *.res
 
-# ignore .temp folder
+
 .temp/
+.codegen_binaries/
+__codegen_build/
+__generated_lindings/

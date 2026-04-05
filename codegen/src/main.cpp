@@ -194,12 +194,12 @@ std::string generateCreateHook(broma::Class& cls, broma::FunctionBindField* fn) 
 
 int main(int argc, char* argv[]) {
 
-    if (argc != 2) {
-        fmt::println("Usage: {} <Broma file>", argv[0]);
+    if (argc != 3) {
+        fmt::println("Usage: {} <Broma file> <Result>", argv[0]);
         return 1;
     }
     globals::fileName = std::string(argv[1]);
-    globals::lindingsFolder = fmt::format("{}.lindings", globals::fileName);
+    globals::lindingsFolder = std::string(argv[2]);
 
     broma::Root root;
     try {
@@ -300,6 +300,6 @@ int main(int argc, char* argv[]) {
     file
         << "set(__GENERATED_LINDINGS_SOURCES\n"
         << globals::cmakeScriptItems
-        << ")";
+        << ")\n";
     return 0;
 }
