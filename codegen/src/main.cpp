@@ -98,7 +98,7 @@ std::string generateProperHookFnCall(broma::Class& cls, broma::FunctionBindField
         buffer << fmt::format("hookFn({});", generateHookSignature(cls, fn, false, false, true, true, true));
     } else {
         buffer << fmt::format("sol::object __TheGreatResultOfAllTime = hookFn({});\n", generateHookSignature(cls, fn, false, false, true, true, true));
-        buffer << fmt::format("                        return __TheGreatResultOfAllTime.as<{}>();", fn->prototype.ret.name);
+        buffer << fmt::format("                return __TheGreatResultOfAllTime.as<{}>();", fn->prototype.ret.name);
     }
 
     return buffer.str();
@@ -127,10 +127,11 @@ std::string generateCallChain(broma::Class& cls, broma::FunctionBindField* fn) {
             "                auto& hookFn = __fucks[__index];\n\n"
 
             "                sol::state_view __AWESOMESTATELETSGO(hookFn.lua_state());\n"
-            "                sol::environment env = sol::get_environment(hookFn);\n\n"
+            "                sol::environment env = sol::environment(__AWESOMESTATELETSGO, sol::create, __AWESOMESTATELETSGO.globals());\n\n"
             "                env[\"original\"] = [__index]({}) {{\n"
             "                    return callChain(__index+1{});\n"
             "                }};\n"
+            "                sol::set_environment(env, hookFn);\n"
             "                {}\n"
             "            }}\n"
         ),
@@ -210,12 +211,14 @@ int main(int argc, char* argv[]) {
     std::ofstream father("lindings/lindings_father.cpp", std::ios::app);
 
     father <<
-        "// Solely contains definition of our lovely classes.\n"
+        "// Forward declares populateHookRegistry for every class and defines populateHookRegistry.\n"
         "#include <Geode/Geode.hpp>\n"
-        "#include <globals.hpp>\n"
+        "#include <yellowcat98.modify/Modify.hpp>\n"
+        "#include <yellowcat98.modify/stuff.hpp>\n"
+        "#include <yellowcat98.modify/utils.hpp>\n"
         "#include <sol/sol.hpp>\n\n"
         "namespace CodegenData {\n"
-        "    inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
+        "    std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
 
 
     for (broma::Class& cls : root.classes) {
@@ -225,12 +228,14 @@ int main(int argc, char* argv[]) {
         std::ofstream file(fmt::format("lindings/lindings_{}.cpp", name), std::ios::app);
 
         file <<
-            "// Solely contains definition of our lovely classes.\n"
+            "// Definition of class \"" << name << "\".\n"
             "#include <Geode/Geode.hpp>\n"
-            "#include <globals.hpp>\n"
+            "#include <yellowcat98.modify/Modify.hpp>\n"
+            "#include <yellowcat98.modify/stuff.hpp>\n"
+            "#include <yellowcat98.modify/utils.hpp>\n"
             "#include <sol/sol.hpp>\n\n"
             "namespace CodegenData {\n"
-            "    inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
+            "    extern std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
 
         file << fmt::format("    namespace _{} {{\n", name); // using _{} so it doesnt conflict with existing gd classes
 

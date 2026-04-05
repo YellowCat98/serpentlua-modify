@@ -5,19 +5,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(cmake/CPM.cmake)
 
-#set(CMAKE_C_COMPILER clang)
-#set(CMAKE_CXX_COMPILER clang++)
-
 set(CMAKE_RC_COMPILER llvm-rc)
 
 set(SOURCES
+    src/lindings/lindings_father.cpp
+    src/lindings/lindings_CreatorLayer.cpp
+    src/lindings/lindings_LoadingLayer.cpp
+    src/lindings/lindings_MenuLayer.cpp
     src/main.cpp
     src/utils.cpp
 )
 
 add_library(yellowcat98_modify SHARED ${SOURCES})
 
-# Rename output to .slp extension
 set_target_properties(yellowcat98_modify PROPERTIES
     OUTPUT_NAME "yellowcat98.modify"
     SUFFIX ".slp"
@@ -32,21 +32,10 @@ CPMAddPackage(
     VERSION 3.5.0 # wonder who thought it was a good idea to not make the actual latest version the latest version!
 )
 
-#set(TULIP_LINK_SOURCE ON)
-#CPMAddPackage(
-#    NAME tuliphook
-#    GITHUB_REPOSITORY geode-sdk/tuliphook
-#    VERSION 3.1.4
-#) # for geode bindings to work
-
-
 target_include_directories(${PROJECT_NAME} PRIVATE ${sol2_SOURCE_DIR}/include)
-#target_include_directories(${PROJECT_NAME} PRIVATE ${tuliphook_SOURCE_DIR}/include)
 
 target_link_libraries(yellowcat98_modify PUBLIC
     "${CMAKE_SOURCE_DIR}/lib/lua.lib"
-    #TulipHook
-    #TulipHookInclude
     GeodeResult
 )
 
@@ -73,5 +62,5 @@ target_include_directories(yellowcat98_modify PRIVATE
     include
 )
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC GEODE_MOD_ID="yellowcat98modify") # required to compile some stuff in geode itself
+target_compile_definitions(${PROJECT_NAME} PUBLIC GEODE_MOD_ID="___yellowcat98modify") # required to compile some stuff in geode itself
 target_link_libraries(${PROJECT_NAME} PUBLIC geode-sdk)

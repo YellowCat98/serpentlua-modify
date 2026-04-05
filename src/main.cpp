@@ -25,73 +25,8 @@ void print(const std::string& msg, const char* type) {
 
 
 namespace CodegenData {
-	inline std::unordered_map<std::string, Modify::HookInfo> hookRegistry;
-	namespace _MenuLayer {
-		namespace onMoreGames {
-			inline uintptr_t address = 0x335740;
-			inline std::vector<sol::function> fucks;
-			inline bool hooked = false;
-
-			static void callChain(size_t index, MenuLayer* self, cocos2d::CCObject* sender) {
-				if (index >= fucks.size()) {
-					self->onMoreGames(sender);
-					return;
-				}
-
-				auto& fn = fucks[index];
-
-				sol::state_view state(fn.lua_state());
-				sol::environment env = sol::get_environment(fn);
-
-				env["original"] = [index](MenuLayer* self, cocos2d::CCObject* sender) {
-					callChain(index+1, self, sender);
-				};
-
-				fn(self, sender);
-			}
-
-			static void detour(MenuLayer* self, cocos2d::CCObject* sender) {
-				callChain(0, self, sender);
-			}
-
-			geode::Result<std::shared_ptr<geode::Hook>> createHook(lua_State* L, const std::string& id, sol::function fn) {
-				sol::state_view state(L);
-
-				void* detourPtr = reinterpret_cast<void*>(&_MenuLayer::onMoreGames::detour);
-
-				std::shared_ptr<geode::Hook> hook;
-
-				if (!_MenuLayer::onMoreGames::hooked) {
-					hook = geode::Hook::create(
-						reinterpret_cast<void*>(geode::base::get() + address),
-						detourPtr,
-						"[SERPENTLUA MODIFY] MenuLayer::onMoreGames",
-						tulip::hook::HandlerMetadata{
-							.m_convention = geode::hook::createConvention(tulip::hook::TulipConvention::Thiscall),
-							.m_abstract = tulip::hook::AbstractFunction::from(static_cast<void(*)(MenuLayer*, cocos2d::CCObject*)>(nullptr)),
-						},
-						tulip::hook::HookMetadata{}
-					);
-					auto res = hook->enable();
-					hooked = true;
-					if (res.isErr()) {
-						return geode::Err("Failed to enable hook: {}", *(res.err()));
-					}
-				}
-
-				return geode::Ok(hook);
-			}
-		}
-
-		void populateHookRegistry() {
-			hookRegistry.emplace("MenuLayer_onMoreGames", Modify::HookInfo(CodegenData::_MenuLayer::onMoreGames::address, CodegenData::_MenuLayer::onMoreGames::createHook, CodegenData::_MenuLayer::onMoreGames::fucks));
-		}
-	}
-
-	// hookRegistry is just a teeny tiny way of retrieving a function through lua
-	void populateHookRegistry() {
-		CodegenData::_MenuLayer::populateHookRegistry();
-	}
+    extern std::unordered_map<std::string, Modify::HookInfo> hookRegistry;
+    void populateHookRegistry(); // declared here, defined by codegen
 }
 
 
@@ -125,7 +60,11 @@ extern "C" __declspec(dllexport) void entry(lua_State* L) {
 			return;
 		}
 
-		auto result = hookInfo.createHook(L, id, function); // no need to check if result is nullptr, nullptr means its already hooked! (or failed lol)
+		sol::state_view state(L);
+		sol::environment env(state, sol::create, state.globals());
+		env.set_on(function);
+
+		auto result = hookInfo.createHook(L, id, function);
 
 		if (result.isErr()) {
 			Modify::api.log(Modify::api.metadata, (*(result.err())).c_str(), "err");
