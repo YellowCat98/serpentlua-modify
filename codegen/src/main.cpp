@@ -10,6 +10,7 @@ struct globals {
     inline static std::string fileName = "";
     inline static std::string lindingsFolder = "";
     inline static std::string hookRegistryItems = "";
+    inline static std::string cmakeScriptItems = "";
 };
 
 std::string handleContainerAnnoyingBullshit(std::pair<broma::Type, std::string> arg) {
@@ -211,7 +212,7 @@ int main(int argc, char* argv[]) {
     std::filesystem::create_directory(globals::lindingsFolder);
 
     std::ofstream father(fmt::format("{}/__lindings_father.cpp", globals::lindingsFolder), std::ios::app);
-
+    
     father <<
         "// Forward declares populateHookRegistry for every class and defines populateHookRegistry.\n"
         "#include <Geode/Geode.hpp>\n"
@@ -221,6 +222,8 @@ int main(int argc, char* argv[]) {
         "#include <sol/sol.hpp>\n\n"
         "namespace CodegenData {\n"
         "    std::unordered_map<std::string, Modify::HookInfo> hookRegistry;\n\n";
+
+        globals::cmakeScriptItems += fmt::format("    {}/__lindings_father.cpp\n", globals::lindingsFolder);
 
 
     for (broma::Class& cls : root.classes) {
@@ -282,7 +285,7 @@ int main(int argc, char* argv[]) {
             << "        }\n\n";
 
         globals::hookRegistryItems += fmt::format("        CodegenData::_{}::populateHookRegistry();\n", cls.name);
-
+        globals::cmakeScriptItems += fmt::format("    {}/lindings_{}.cpp\n", globals::lindingsFolder, cls.name);
         file << "    }\n}";
     }
     father << "    void populateHookRegistry() {\n"
@@ -291,5 +294,12 @@ int main(int argc, char* argv[]) {
 
     father << "}";
 
+    // now onto generating the #CMakeScript
+
+    std::ofstream file(fmt::format("{}/__lindings_generated.cmake", globals::lindingsFolder), std::ios::app);
+    file
+        << "set(__GENERATED_LINDINGS_SOURCES\n"
+        << globals::cmakeScriptItems
+        << ")";
     return 0;
 }
