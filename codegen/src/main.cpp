@@ -8,6 +8,7 @@
 
 struct globals {
     inline static std::string fileName = "";
+    inline static std::string lindingsFolder = "";
     inline static std::string hookRegistryItems = "";
 };
 
@@ -197,6 +198,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     globals::fileName = std::string(argv[1]);
+    globals::lindingsFolder = fmt::format("{}.lindings", globals::fileName);
 
     broma::Root root;
     try {
@@ -206,9 +208,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::filesystem::create_directory("lindings");
+    std::filesystem::create_directory(globals::lindingsFolder);
 
-    std::ofstream father("lindings/lindings_father.cpp", std::ios::app);
+    std::ofstream father(fmt::format("{}/__lindings_father.cpp", globals::lindingsFolder), std::ios::app);
 
     father <<
         "// Forward declares populateHookRegistry for every class and defines populateHookRegistry.\n"
@@ -225,7 +227,7 @@ int main(int argc, char* argv[]) {
         std::string hookRegistryForClass;
         std::string& name = cls.name;
         father << fmt::format("    namespace _{} {{ void populateHookRegistry(); }}\n", name);
-        std::ofstream file(fmt::format("lindings/lindings_{}.cpp", name), std::ios::app);
+        std::ofstream file(fmt::format("{}/lindings_{}.cpp", globals::lindingsFolder, name), std::ios::app);
 
         file <<
             "// Definition of class \"" << name << "\".\n"

@@ -8,10 +8,6 @@ include(cmake/CPM.cmake)
 set(CMAKE_RC_COMPILER llvm-rc)
 
 set(SOURCES
-    src/lindings/lindings_father.cpp
-    src/lindings/lindings_CreatorLayer.cpp
-    src/lindings/lindings_LoadingLayer.cpp
-    src/lindings/lindings_MenuLayer.cpp
     src/main.cpp
     src/utils.cpp
 )
