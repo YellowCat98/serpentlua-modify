@@ -2,6 +2,7 @@
 #include <yellowcat98.modify/stuff.hpp>
 #include <unordered_map>
 #include <sol/sol.hpp>
+#include <Geode/Geode.hpp>
 extern "C" {
 	#include <lua.h>
 	#include <lualib.h>

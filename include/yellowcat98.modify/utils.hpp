@@ -1,5 +1,5 @@
 #pragma once
-
+#include <Geode/Geode.hpp>
 extern "C" {
 	#include <lua.h>
 	#include <lualib.h>
