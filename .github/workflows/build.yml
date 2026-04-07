@@ -72,15 +72,15 @@ jobs:
           name: Build
           path:  ${{ github.workspace }}\.output\**\*
 
-      - name: Upload Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.0
-          name: SerpentLua Modify v1.0.0
-          prerelease: false
-          body: |
-            SerpentLua Initial Release
-          
-          files: ${{ github.workspace }}\.output\**\*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Upload Release
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          tag_name: v1.0.0
+#          name: SerpentLua Modify v1.0.0
+#          prerelease: false
+#          body: |
+#            SerpentLua Initial Release
+#          
+#          files: ${{ github.workspace }}\.output\**\*
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
