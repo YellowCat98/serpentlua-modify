@@ -10,6 +10,8 @@
 - GameStatsManager
 
 ## Usage:
+(this is step zero because i dont want to go through incrementing all the steps numbers to make this one step 1)
+0. As you should with every plugin you wish to use, make sure that it is added to the metadata of the script. and that you have retrieved the plugin's module through `require("yellowcat98.modify")`.
 1. Create the hook
 > ```lua
 > Modify.createHook(hookID, className, functionName, detour)
@@ -42,6 +44,33 @@
 - hookID: the hook that you want to be applied.
 - `applyHook` must be called for every hook that you create in order for it to take effect.
 
+## Special Behavior
+- These are things that Modify does for certain functions.
+### Overloaded Functions
+- Overloads are functions with the same name, but take different parameters.
+- Modify handles these by appending a __num to the function's name.
+- Example:
+> ```lua
+> Modify.createHook("function1", "MyClass", "my_func", function(self, arg, arg2) end)
+> Modify.createHook("function2", "MyClass", "my_func__2", function(self, arg, arg2, extraArg) end) -- This is a function that overloads `my_func`. Internally, it holds the same name but different parameters.
+> -- Do the same for other overloads (e.g. `my_func__3`, `my_func__4`, etc.)
+> ```
+### Unsupported function parameters
+- Modify omits certain functions due to a technical limitation by the Sol2 Lua API that Modify relies on heavily.
+- Functions that take non-const references (`T&`) and functions that take `std::unordered_map`.
+- Example:
+> ```c++
+> std::string& hello2; // Will be omitted.
+> std::unordered_map<T1, T2> helloArray; // Will be omitted.
+>
+> std::string hello3; // Will not be omitted.
+> const std::string& hello; // Will not be omitted
+> ```
+- If your function has a Windows address for a function, check its parameters.
+
+
 ## Possible Question:
 - Q: Why does Geode show in the console that a hook was applied even though the script doesn't apply it?
-- A: The way Modify works internally, it uses one hook for every function that gets hooked. And simply calls all the functions that hook it. This is in order to preserve the original call chain. So that the original function will not get called twice because of two scripts that call it twice.
+- A: The way Modify works internally, it uses one hook for every function that gets hooked. And simply calls all the functions that hook it. This is in order to preserve the original call chain. So that the original function will not get called twice because of two scripts that call it twice. All the applyHook function do is simply add the function to the call chain of the list of detours.
+- Q: The function I want to hook is in `lindings.bro`, why can't I hook it?
+- A: Only functions that have a Windows address can be hooked. `win inline`, the absence of a `win 0xAddress`, and the return of the function being `TodoReturn` mean that the function cannot be hooked as of now. If it does have an address, Modify omits certain functions due to technical limitation, view the [Special Behavior](#special-behavior) section in this README.
