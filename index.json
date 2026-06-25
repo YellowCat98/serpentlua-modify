@@ -1,4 +1,5 @@
 {
 	"desc": "description.md",
-	"example": "yellowcat98.modify_example.lua"
+	"example": "yellowcat98.modify_example.lua",
+	"plugin": "yellowcat98.modify.slp"
 }
