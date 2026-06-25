@@ -8,6 +8,8 @@
 - LoadingLayer
 - GameManager
 - GameStatsManager
+- PlayLayer
+- GJBaseGameLayer
 
 ## Usage:
 (this is step zero because i dont want to go through incrementing all the steps numbers to make this one step 1)
