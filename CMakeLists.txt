@@ -78,11 +78,12 @@ target_link_libraries(yellowcat98_modify PUBLIC
 
 set(RESOURCE_FILE "${CMAKE_SOURCE_DIR}/serpentlua.rc")
 set(RESOURCE_OUTPUT "${CMAKE_BINARY_DIR}/serpentlua.res")
+set(PLUGINS_SLM "${CMAKE_SOURCE_DIR}/plugin.slm")
 
 add_custom_command(
     OUTPUT ${RESOURCE_OUTPUT}
     COMMAND ${CMAKE_RC_COMPILER} /fo ${RESOURCE_OUTPUT} ${RESOURCE_FILE}
-    DEPENDS ${RESOURCE_FILE}
+    DEPENDS ${RESOURCE_FILE} ${PLUGINS_SLM}
     COMMENT "Compiling resource file serpentlua.rc with llvm-rc"
 )
 

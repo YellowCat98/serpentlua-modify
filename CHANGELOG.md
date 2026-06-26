@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.3
+- Fixed metadata.
+- Removed herobrine
+
 ## v1.1.2
 - Fixed metadata.
 
