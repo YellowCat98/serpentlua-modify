@@ -1,5 +1,6 @@
 {
 	"desc": "description.md",
 	"example": "yellowcat98.modify_example.lua",
-	"plugin": "yellowcat98.modify.slp"
+	"plugin": "yellowcat98.modify.slp",
+	"owned_by": 28960177
 }

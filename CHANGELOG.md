@@ -1,7 +1,10 @@
 # Changelog
 
+## v1.1.2
+- Fixed metadata.
+
 ## v1.1.1
-- Fixed metadata
+- Fixed metadata.
 
 ## v1.1.0
 - Added PlayLayer and GJBaseGameLayer classes.
